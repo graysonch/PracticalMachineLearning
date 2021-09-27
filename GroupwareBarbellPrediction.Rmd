@@ -1,0 +1,148 @@
+---
+title: 'Groupware Barbell Prediction'
+author: "Christine Grayson"
+output:
+  html_document:
+    df_print: paged
+    self_contained: yes
+    keep_md: yes
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+suppressWarnings(suppressMessages(library(ggplot2)))
+suppressWarnings(suppressMessages(library(knitr)))
+suppressWarnings(suppressMessages(library(caret)))
+suppressWarnings(suppressMessages(library(grid)))
+suppressWarnings(suppressMessages(library(dplyr)))
+suppressWarnings(suppressMessages(library(tidyr)))
+suppressWarnings(suppressMessages(library(gridExtra)))
+suppressWarnings(suppressMessages(library(AppliedPredictiveModeling)))
+suppressWarnings(suppressMessages(library(gbm)))
+```
+## Executive Summary
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. In this project, the goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to predict the manner in which they performed the exercise. This manner is captured in the 'classe' variable of the data and has values as follows:
+
+* (Class A) - exactly according to the specification
+* (Class B) - throwing the elbows to the front 
+* (Class C) - lifting the dumbbell only halfway 
+* (Class D) - lowering the dumbbell only halfway 
+* (Class E) - throwing the hips to the front 
+
+Read more: http:/groupware.les.inf.puc-rio.br/har#ixzz4TjpsCvjA
+
+## Loading Data
+```{r read, include=TRUE, echo=TRUE}
+training_data_file <- "./data/pml-training.csv"
+test_data_file <- "./data/pml-testing.csv"
+```
+
+```{r download, include=FALSE, echo=FALSE}
+
+if (!file.exists(training_data_file)) {
+    fileURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+    download.file(fileURL,destfile=training_data_file)
+}
+
+if (!file.exists(test_data_file)) {
+    fileURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+    download.file(fileURL,destfile=training_data_file)
+}
+```
+
+```{r load, include=TRUE, echo=TRUE}
+raw_train <- read.csv(training_data_file, header=T, na.strings=c(""," ","NA","#DIV/0!"))
+raw_train$classe <- as.factor(raw_train$classe)
+
+raw_test <- read.csv(test_data_file, header=T, na.strings=c(""," ","NA","#DIV/0!"))
+
+dim(raw_train)
+```
+
+## Data Cleaning and Preprocessing
+Remove columns that are totally NAs and those that are non numeric and then, on the resulting columns, impute NA values, center and scale. The 'classe' value will be removed during this process so we have to put it back again. Everything we do to the training we have to do to the test set that we will use to run the predictions on and answer the assignment.
+
+```{r cleaning, echo=TRUE}
+NAindex <- apply(raw_train,2,function(x) {sum(is.na(x))}) 
+raw_train <- raw_train[,which(NAindex == 0)]
+raw_test <- raw_test[,which(NAindex == 0)]
+
+num <- which(lapply(raw_train, class) %in% "numeric")
+preObj <-preProcess(raw_train[,num],method=c('knnImpute', 'center', 'scale'))
+clean_train <- predict(preObj, raw_train[,num])
+clean_train$classe <- raw_train$classe
+
+clean_test <- predict(preObj, raw_test[,num])
+
+```
+
+## Covariates
+Remove the near zero covariates, this removes the variables that have very little variablility and are probably not going to be very good predictors. This has reduced the number of predictors from 160 down to 28.
+
+```{r covariates, echo=TRUE}
+nzv <- nearZeroVar(clean_train,saveMetrics=TRUE)
+clean_train <- clean_train[,nzv$nzv==FALSE]
+nzv <- nearZeroVar(clean_test,saveMetrics=TRUE)
+clean_test <- clean_test[,nzv$nzv==FALSE]
+
+str(clean_train)
+
+```
+
+## Selecting a Model on the Basis of Accuracy using Cross Validation
+The first thing to do is to split the training set into a train portion and a test portion which will form the basis for cross validation. Then train various models against the train set and test the accuracy of each against the test set. There is even a stacked model which combines the models (taken from the example on the course). The conclusion is that the random forrest and stacked models have the greatest accuracy so use the random forrest model as the stacked has no benefit. 
+
+```{r model_select, echo=TRUE}
+
+set.seed(62433)
+# Create cross validation set
+inTrain = createDataPartition(clean_train$classe, p = 3/4, list=FALSE)
+train = clean_train[inTrain,]
+test = clean_train[-inTrain,]
+
+modelFit_rf <- train(classe~.,data=train,method="rf")
+pred_rf <- predict(modelFit_rf,test)
+print(paste0("Random Forrest Accuracy ",confusionMatrix(test$classe,pred_rf)$overall["Accuracy"]))
+
+modelFit_boost <- train(classe~.,data=train,method="gbm",verbose=FALSE)
+pred_boost <- predict(modelFit_boost,test)
+print(paste0("Boost Accuracy ",confusionMatrix(test$classe,pred_boost)$overall["Accuracy"]))
+
+modelFit_lda <- train(classe~.,data=train,method="lda")
+pred_lda <- predict(modelFit_lda,test)
+print(paste0("LDA Accuracy ",confusionMatrix(test$classe,pred_lda)$overall["Accuracy"]))
+
+predDF <- data.frame(pred_rf,pred_boost,pred_lda,classe=test$classe)
+CombModFit <- train(classe~.,method="rf",data=predDF)
+pred_comb <- predict(CombModFit,predDF)
+print(paste0("STACKED Accuracy ",confusionMatrix(test$classe,pred_comb)$overall["Accuracy"]))
+
+```
+
+## In Sample Error, Versus Out of Sample Error
+The in-sample error is the error rate you get on the same data set you use to build your prediction model (resubstitution error), the out-of-sample error is the error rate you get on new data (generalization error). Here we will just compare the two predictions for the random forrest model. As you can see below, the prediction is 100% accurate on the training data, but on the test data the out sample error misses 4 predictions. The  out sample error is expected to be higher the in-sample.
+
+# Training Confusion Matrix Showing In-Sample Errors
+```{r in-sample, echo=TRUE}
+pred_rf_tr <- predict(modelFit_rf,train)
+cf_in_sample = confusionMatrix(train$classe,pred_rf_tr)
+print(cf_in_sample)
+```
+
+# Testing Confusion Matrix Showing Out-Sample Errors
+```{r out-sample, echo=TRUE}
+cf_out_sample = confusionMatrix(test$classe,pred_rf)
+print(cf_out_sample)
+```
+
+## Running Predictions on the Test Set
+
+```{r model_run, echo=TRUE}
+prediction <- predict(modelFit_rf, clean_test)
+print(prediction)
+
+```
+
+
