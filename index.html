@@ -1636,10 +1636,19 @@ pre code {
 </div>
 <div id="loading-data" class="section level2">
 <h2>Loading Data</h2>
+<pre class="r"><code>training_data_file &lt;- &quot;./data/pml-training.csv&quot;
+test_data_file &lt;- &quot;./data/pml-testing.csv&quot;</code></pre>
+<pre class="r"><code>raw_train &lt;- read.csv(training_data_file, header=T, na.strings=c(&quot;&quot;,&quot; &quot;,&quot;NA&quot;,&quot;#DIV/0!&quot;))
+raw_train$classe &lt;- as.factor(raw_train$classe)
+
+raw_test &lt;- read.csv(test_data_file, header=T, na.strings=c(&quot;&quot;,&quot; &quot;,&quot;NA&quot;,&quot;#DIV/0!&quot;))
+
+dim(raw_train)</code></pre>
+<pre><code>## [1] 19622   160</code></pre>
 </div>
 <div id="data-cleaning-and-preprocessing" class="section level2">
 <h2>Data Cleaning and Preprocessing</h2>
-<p>Remove columns that are totally NAs and those that are non numeric and then impute NA values, center and scale. The ‘classe’ value will be removed durint this process so we have to put it back again. Everything we do to the training we have to do to the test set that we will use to run the predictions on and answer the assignment.</p>
+<p>Remove columns that are totally NAs and those that are non numeric and then, on the resulting columns, impute NA values, center and scale. The ‘classe’ value will be removed during this process so we have to put it back again. Everything we do to the training we have to do to the test set that we will use to run the predictions on and answer the assignment.</p>
 <pre class="r"><code>NAindex &lt;- apply(raw_train,2,function(x) {sum(is.na(x))}) 
 raw_train &lt;- raw_train[,which(NAindex == 0)]
 raw_test &lt;- raw_test[,which(NAindex == 0)]
@@ -1653,7 +1662,7 @@ clean_test &lt;- predict(preObj, raw_test[,num])</code></pre>
 </div>
 <div id="covariates" class="section level2">
 <h2>Covariates</h2>
-<p>Remove the near zero covariates, this removes the variables that have very little predictability and are probably not going to be very good predictors.</p>
+<p>Remove the near zero covariates, this removes the variables that have very little variablility and are probably not going to be very good predictors. This has reduced the number of predictors from 160 down to 28. Although we are using the saveMetrics here we are not actually printing out the variance to save review time.</p>
 <pre class="r"><code>nzv &lt;- nearZeroVar(clean_train,saveMetrics=TRUE)
 clean_train &lt;- clean_train[,nzv$nzv==FALSE]
 nzv &lt;- nearZeroVar(clean_test,saveMetrics=TRUE)
@@ -1719,10 +1728,10 @@ print(paste0(&quot;STACKED Accuracy &quot;,confusionMatrix(test$classe,pred_comb
 </div>
 <div id="in-sample-error-versus-out-of-sample-error" class="section level2">
 <h2>In Sample Error, Versus Out of Sample Error</h2>
-<p>The in-sample error is the error rate you get on the same data set you use to build your prediction model (resubstitution error), the out-of-sample error is the error rate you get on new data (generalization error). Here we will just compare the two predictions for the random forrest model. As you can see below, the prediction is 100% accurate on the training data, but on the test data the out sample error misses 4 predictions. The out sample error is expected to be higher the in-sample.</p>
+<p>The in-sample error is the error rate you get on the same data set you use to build your prediction model (resubstitution error), the out-of-sample error is the error rate you get on new data (generalization error). Here we will just compare the two predictions for the random forrest model. As you can see below, the prediction is 100% accurate on the training data, but on the test data the out sample error misses 4 predictions. The out sample error is expected to be higher than the in-sample.</p>
 </div>
 <div id="training-confusion-matrix-showing-in-sample-errors" class="section level1">
-<h1>Training confusion matrix showing in sample errors</h1>
+<h1>Training Confusion Matrix Showing In-Sample Errors</h1>
 <pre class="r"><code>pred_rf_tr &lt;- predict(modelFit_rf,train)
 cf_in_sample = confusionMatrix(train$classe,pred_rf_tr)
 print(cf_in_sample)</code></pre>
@@ -1760,7 +1769,7 @@ print(cf_in_sample)</code></pre>
 ## Balanced Accuracy      1.0000   1.0000   1.0000   1.0000   1.0000</code></pre>
 </div>
 <div id="testing-confusion-matrix-showing-out-sample-errors" class="section level1">
-<h1>Testing confusion matrix showing out sample errors</h1>
+<h1>Testing Confusion Matrix Showing Out-Sample Errors</h1>
 <pre class="r"><code>cf_out_sample = confusionMatrix(test$classe,pred_rf)
 print(cf_out_sample)</code></pre>
 <pre><code>## Confusion Matrix and Statistics
