@@ -122,7 +122,7 @@ print(paste0("STACKED Accuracy ",confusionMatrix(test$classe,pred_comb)$overall[
 ```
 
 ## In-Sample Error, Versus Out-of-Sample Error
-The in-sample error is the error rate you get on the same data set you use to build your prediction model (resubstitution error), the out-of-sample error is the error rate you get on new data (generalization error). Here we will just compare the two predictions for the random forrest model. As you can see below, the prediction is 100% accurate on the training data, but on the test data the out sample error misses 18 predictions. The  out sample error is expected to be higher than the in-sample.
+The in-sample error is the error rate you get on the same data set you use to build your prediction model (resubstitution error), the out-of-sample error is the error rate you get on new data (generalization error). Here we will just compare the two predictions for the random forrest model. As you can see below, the prediction is 100% accurate on the training data, but on the test data the out sample error misses 19 predictions. The  out sample error is expected to be higher than the in-sample.
 
 # Training Confusion Matrix Showing In-Sample Errors
 ```{r in-sample, echo=TRUE}
