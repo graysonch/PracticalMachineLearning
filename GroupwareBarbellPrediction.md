@@ -24,13 +24,29 @@ Read more: http:/groupware.les.inf.puc-rio.br/har#ixzz4TjpsCvjA
 
 ## Loading Data
 
+```r
+training_data_file <- "./data/pml-training.csv"
+test_data_file <- "./data/pml-testing.csv"
+```
 
 
 
 
+```r
+raw_train <- read.csv(training_data_file, header=T, na.strings=c(""," ","NA","#DIV/0!"))
+raw_train$classe <- as.factor(raw_train$classe)
+
+raw_test <- read.csv(test_data_file, header=T, na.strings=c(""," ","NA","#DIV/0!"))
+
+dim(raw_train)
+```
+
+```
+## [1] 19622   160
+```
 
 ## Data Cleaning and Preprocessing
-Remove columns that are totally NAs and those that are non numeric and then impute NA values, center and scale. The 'classe' value will be removed durint this process so we have to put it back again. Everything we do to the training we have to do to the test set that we will use to run the predictions on and answer the assignment.
+Remove columns that are totally NAs and those that are non numeric and then, on the resulting columns, impute NA values, center and scale. The 'classe' value will be removed during this process so we have to put it back again. Everything we do to the training we have to do to the test set that we will use to run the predictions on and answer the assignment.
 
 
 ```r
@@ -47,7 +63,7 @@ clean_test <- predict(preObj, raw_test[,num])
 ```
 
 ## Covariates
-Remove the near zero covariates, this removes the variables that have very little predictability and are probably not going to be very good predictors.
+Remove the near zero covariates, this removes the variables that have very little variablility and are probably not going to be very good predictors. This has reduced the number of predictors from 160 down to 28. Although we are using the saveMetrics here we are not actually printing out the variance to save review time.
 
 
 ```r
@@ -142,10 +158,10 @@ print(paste0("STACKED Accuracy ",confusionMatrix(test$classe,pred_comb)$overall[
 ## [1] "STACKED Accuracy 0.996125611745514"
 ```
 
-## In Sample Error, Versus Out of Sample Error
-The in-sample error is the error rate you get on the same data set you use to build your prediction model (resubstitution error), the out-of-sample error is the error rate you get on new data (generalization error). Here we will just compare the two predictions for the random forrest model. As you can see below, the prediction is 100% accurate on the training data, but on the test data the out sample error misses 4 predictions. The  out sample error is expected to be higher the in-sample.
+## In-Sample Error, Versus Out-of-Sample Error
+The in-sample error is the error rate you get on the same data set you use to build your prediction model (resubstitution error), the out-of-sample error is the error rate you get on new data (generalization error). Here we will just compare the two predictions for the random forrest model. As you can see below, the prediction is 100% accurate on the training data, but on the test data the out sample error misses 18 predictions. The  out sample error is expected to be higher than the in-sample.
 
-# Training confusion matrix showing in sample errors
+# Training Confusion Matrix Showing In-Sample Errors
 
 ```r
 pred_rf_tr <- predict(modelFit_rf,train)
@@ -188,7 +204,7 @@ print(cf_in_sample)
 ## Balanced Accuracy      1.0000   1.0000   1.0000   1.0000   1.0000
 ```
 
-# Testing confusion matrix showing out sample errors
+# Testing Confusion Matrix Showing Out-Sample Errors
 
 ```r
 cf_out_sample = confusionMatrix(test$classe,pred_rf)
